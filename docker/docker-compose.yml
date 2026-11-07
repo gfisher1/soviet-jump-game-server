@@ -1,0 +1,32 @@
+# Soviet Jump Game - local backend
+#
+#   docker compose up --build
+#
+# The mock backend listens on :8080. Point the client patch's ApiBaseUrl at
+# http://<host>:8080/ and launch the (retail) headless game server separately
+# so its UDP port is reachable on SJG_GAME_PORT.
+services:
+  sjg-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: sjg-server:latest
+    ports:
+      - "8080:8080/tcp"
+      - "42010:42010/udp"
+    environment:
+      SJG_PUBLIC_HOST: "${SJG_PUBLIC_HOST:-127.0.0.1}"
+      SJG_GAME_PORT: "${SJG_GAME_PORT:-42010}"
+      SJG_ACCOUNT_GROUP: "${SJG_ACCOUNT_GROUP:-Administrator}"
+      SJG_JWT_SECRET: "${SJG_JWT_SECRET:-sjg-local-secret}"
+    restart: unless-stopped
+
+  # Optional: run the retail game as a headless server under Wine. Requires you to
+  # provide your own game files (bind-mounted read-only) - they are NOT in the repo.
+  #
+  # sjg-gameserver:
+  #   image: scottyhardy/docker-wine:latest
+  #   volumes:
+  #     - "${SJG_GAME_DIR:?set SJG_GAME_DIR}:/game:ro"
+  #   entrypoint: ["/game/run-headless.sh"]
+  #   network_mode: "host"
