@@ -17,6 +17,7 @@ import hmac
 import json
 import os
 import time
+import time as _time
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -36,6 +37,54 @@ app = FastAPI(title="Soviet Jump Game - local backend", version="0.1.0")
 
 # In-memory registry of game servers (populated via /server/heartbeat).
 _servers: Dict[str, "ServerInstance"] = {}
+_server_seen: Dict[str, float] = {}
+SERVER_STALE_SECONDS = 20.0
+
+
+def _static_servers() -> List["ServerInstance"]:
+    """Servers always present in the browser, from SJG_STATIC_SERVERS.
+
+    Format: 'host:port:Name, host2:port2, ...' (name optional).
+    """
+    raw = os.environ.get("SJG_STATIC_SERVERS", "").strip()
+    out: List[ServerInstance] = []
+    if not raw:
+        return out
+    for i, entry in enumerate(raw.replace(";", ",").split(",")):
+        entry = entry.strip()
+        if not entry:
+            continue
+        parts = entry.split(":")
+        if len(parts) < 2:
+            continue
+        host = parts[0].strip()
+        try:
+            port = int(parts[1])
+        except ValueError:
+            continue
+        name = parts[2].strip() if len(parts) > 2 else ("SJG Server " + str(i + 1))
+        out.append(ServerInstance(
+            SessionId="static-" + str(i),
+            Address=host,
+            Port=port,
+            Region="USSR",
+            State="AcceptingPlayers",
+            Metadata={"Name": name, "MaxPlayers": 48, "Static": True},
+        ))
+    return out
+
+
+class ServerListing(BaseModel):
+    id: str
+    name: str
+    ip: str
+    port: int
+    players: int
+    maxPlayers: int
+    map: str = ""
+    region: str = "USSR"
+    private: bool = False
+    password: bool = False
 
 
 # --------------------------------------------------------------------------------------
@@ -165,9 +214,50 @@ async def public_match(region: str, auto: int = 0) -> MinimalServerInstance:
 
 
 @app.post("/server/heartbeat")
-async def heartbeat(inst: ServerInstance) -> Dict[str, bool]:
-    _servers[inst.SessionId or str(uuid.uuid4())] = inst
+async def heartbeat(inst: ServerInstance, request: Request) -> Dict[str, bool]:
+    sid = inst.SessionId or str(uuid.uuid4())
+    if not inst.Address or inst.Address in ("0.0.0.0", "::"):
+        # Trust the source address of the heartbeat so hosts don't have to know their own IP.
+        client = request.client
+        if client is not None:
+            inst.Address = client.host
+    _servers[sid] = inst
+    _server_seen[sid] = _time.time()
     return {"ok": True}
+
+
+@app.get("/servers")
+async def list_servers() -> List[ServerListing]:
+    """Server browser: the list of currently-registered + configured game servers."""
+    now = _time.time()
+    out: List[ServerListing] = []
+
+    def add(inst: ServerInstance) -> None:
+        md = inst.Metadata or {}
+        out.append(ServerListing(
+            id=(inst.SessionId or "")[:8],
+            name=str(md.get("Name") or md.get("RoomID") or ("SJG-" + (inst.SessionId or "")[:6])),
+            ip=inst.Address,
+            port=inst.Port,
+            players=len(inst.Players or []),
+            maxPlayers=int(md.get("MaxPlayers", 50) or 50),
+            map=str(md.get("Map", "")),
+            region=inst.Region,
+            private=bool(inst.Private),
+        ))
+
+    for inst in _static_servers():
+        add(inst)
+
+    for sid, inst in list(_servers.items()):
+        if now - _server_seen.get(sid, 0) > SERVER_STALE_SECONDS:
+            _servers.pop(sid, None)
+            _server_seen.pop(sid, None)
+            continue
+        add(inst)
+
+    out.sort(key=lambda s: (s.private, -s.players))
+    return out
 
 
 @app.get("/player/ingame/{playfab_id}")

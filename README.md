@@ -14,15 +14,33 @@ This repo is the counterpart to **[soviet-jump-game-patch](../soviet-jump-game-p
 | Piece | State |
 | --- | --- |
 | Mock backend (`/authenticate`, `/server/*`, `/player/ingame/*`) | ✅ implemented |
+| **Server browser** (`/servers` + heartbeat registry + static servers) | ✅ implemented |
 | Docker image + compose | ✅ |
 | Headless game-server launcher | ✅ (uses your retail files) |
-| Client ↔ server tie-in (`ApiBaseUrl`) | ✅ in the patch repo |
-| Auto server registration (heartbeat) | 🚧 documented, not implemented |
+| Client ↔ server tie-in (`ApiBaseUrl`, console browser, direct connect) | ✅ in the patch repo |
+| Auto server registration (heartbeat) | ✅ client-side sender in the patch repo |
 | Full online matchmaking (PlayFab QoS + join) | 🚧 roadmap — see `docs/PROTOCOL.md` §4 |
 
 > Offline single-player is already fully working via the patch repo alone
-> (`PRACTICE` starts a local server). This repo is for bringing back
-> server-backed / private matches.
+> (`PRACTICE` starts a local server). This repo adds the server list/browser and the
+> pieces needed for hosted games.
+
+## Server browser
+
+The backend keeps a live registry of game servers:
+
+* `POST /server/heartbeat` — a host advertises itself (the patch sends this
+  automatically for locally-hosted matches). The source IP is used if the body's
+  `Address` is empty.
+* `GET /servers` — the list shown by the in-game browser (`sjg-servers`).
+* Servers idle for 20s are pruned.
+* **Static servers** can be configured without any heartbeat:
+
+```bash
+export SJG_STATIC_SERVERS="192.168.1.50:42010:Comrade's LAN Server,10.0.0.9:42011"
+```
+
+Then the in-game browser lists them and `sjg-join <n>` connects.
 
 ## Protocol
 
