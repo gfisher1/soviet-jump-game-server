@@ -3,8 +3,9 @@
 A self-hosted replacement for the dead online services of **Soviet Jump Game**
 (Steam AppID `1072710`, by Fantastic Passion / Game Grumps).
 
-Ships as a Docker-friendly **FastAPI** service that implements the game's custom
-backend ("SovietAPI"), plus tooling to run the retail game as a headless server.
+Ships as a **FastAPI** service that implements the game's custom backend
+("SovietAPI") plus a **live server registry / browser**, and tooling to run the retail
+game as a headless server. Runs on **Windows**, **Linux**, and **Docker**.
 
 This repo is the counterpart to **[soviet-jump-game-patch](../soviet-jump-game-patch)**
 (which points the client here).
@@ -13,59 +14,72 @@ This repo is the counterpart to **[soviet-jump-game-patch](../soviet-jump-game-p
 
 | Piece | State |
 | --- | --- |
-| Mock backend (`/authenticate`, `/server/*`, `/player/ingame/*`) | ✅ implemented |
-| **Server browser** (`/servers` + heartbeat registry + static servers) | ✅ implemented |
+| Mock backend (`/authenticate`, `/server/*`, `/player/ingame/*`) | ✅ |
+| **Server browser** (`/servers` + heartbeat registry + static servers) | ✅ |
 | Docker image + compose | ✅ |
 | Headless game-server launcher | ✅ (uses your retail files) |
 | Client ↔ server tie-in (`ApiBaseUrl`, console browser, direct connect) | ✅ in the patch repo |
-| Auto server registration (heartbeat) | ✅ client-side sender in the patch repo |
-| Full online matchmaking (PlayFab QoS + join) | 🚧 roadmap — see `docs/PROTOCOL.md` §4 |
+| Auto server registration (heartbeat) | ✅ sender in the patch repo |
+| Full online matchmaking (PlayFab QoS + join) | 🚧 roadmap — see [`docs/PROTOCOL.md`](docs/PROTOCOL.md) §4 |
 
-> Offline single-player is already fully working via the patch repo alone
-> (`PRACTICE` starts a local server). This repo adds the server list/browser and the
-> pieces needed for hosted games.
+> Offline single-player is fully working with the patch repo alone. This repo adds the
+> server list/browser and the pieces needed for hosted games.
+
+## Quick start — Linux / macOS
+
+```bash
+./run.sh                      # http://localhost:8080
+curl -s http://localhost:8080/servers
+```
+
+## Quick start — Windows
+
+```powershell
+.\run.ps1                     # http://localhost:8080
+Invoke-RestMethod http://localhost:8080/servers
+```
+
+## Quick start — Docker
+
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+
+Then point the patched client at it — set `Server.ApiBaseUrl = http://<host>:8080/` in the
+patch's `games.gfi.sjg.patch.cfg`, and use `sjg-refresh` / `sjg-servers` in-game.
+
+---
 
 ## Server browser
 
 The backend keeps a live registry of game servers:
 
-* `POST /server/heartbeat` — a host advertises itself (the patch sends this
-  automatically for locally-hosted matches). The source IP is used if the body's
+* `POST /server/heartbeat` — a host advertises itself. The patch sends this automatically
+  for matches you host (`RegisterWithServer = true`). The source IP is used if the body's
   `Address` is empty.
 * `GET /servers` — the list shown by the in-game browser (`sjg-servers`).
 * Servers idle for 20s are pruned.
-* **Static servers** can be configured without any heartbeat:
+
+### Static servers (no heartbeat needed)
+
+Useful for fixed boxes / LAN / testing. Set `SJG_STATIC_SERVERS`:
 
 ```bash
+# Linux/macOS
 export SJG_STATIC_SERVERS="192.168.1.50:42010:Comrade's LAN Server,10.0.0.9:42011"
+./run.sh
 ```
 
-Then the in-game browser lists them and `sjg-join <n>` connects.
-
-## Protocol
-
-The full reverse-engineered client ⇄ server contract lives in
-[`docs/PROTOCOL.md`](docs/PROTOCOL.md).
-
-## Quick start
-
-```bash
-# Backend
-docker compose -f docker/docker-compose.yml up --build
-# -> http://localhost:8080
-
-# Health check
-curl -s http://localhost:8080/health
-curl -s http://localhost:8080/server/regions
+```powershell
+# Windows
+$env:SJG_STATIC_SERVERS = "192.168.1.50:42010:Comrade's LAN Server,10.0.0.9:42011"
+.\run.ps1
 ```
 
-Then point the patched client at it. In
-`BepInEx/config/games.gfi.sjg.patch.cfg`:
+Format: `host:port[:Name]` entries separated by `,` or `;`. They always appear in
+`/servers`, and `sjg-join <n>` connects to them.
 
-```ini
-[Server]
-ApiBaseUrl = http://127.0.0.1:8080/
-```
+---
 
 ## Configuration (env)
 
@@ -75,6 +89,31 @@ ApiBaseUrl = http://127.0.0.1:8080/
 | `SJG_GAME_PORT` | `42010` | UDP port of the game server. |
 | `SJG_ACCOUNT_GROUP` | `Administrator` | `ApiAccountType` returned by `/authenticate`. |
 | `SJG_JWT_SECRET` | `sjg-local-secret` | HS256 secret for the issued token. |
+| `SJG_STATIC_SERVERS` | *(empty)* | Always-listed servers: `host:port[:Name],…`. |
+| `HOST` / `PORT` | `0.0.0.0` / `8080` | Listen address/port (run scripts). |
+
+## Protocol
+
+The full reverse-engineered client ⇄ server contract is in
+[`docs/PROTOCOL.md`](docs/PROTOCOL.md).
+
+## Headless game server
+
+The "server" is the retail game run headless (`-batchmode`). See
+[`gameserver/README.md`](gameserver/README.md) and [`gameserver/run-headless.sh`](gameserver/run-headless.sh).
+
+## API endpoints
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| POST | `/authenticate` | Login; returns `{token, group}` |
+| GET | `/server/regions` | Region list |
+| GET | `/servers` | **Server browser list** |
+| POST | `/server/heartbeat` | Register a server |
+| POST | `/server/private/create` · GET `/server/private/connect/{code}` | Private matches |
+| GET | `/server/public/{region}` | Public matchmaking |
+| GET | `/player/ingame/{playfabId}` | In-game check |
+| GET | `/health` | Liveness |
 
 ## Layout
 
@@ -82,14 +121,16 @@ ApiBaseUrl = http://127.0.0.1:8080/
 app/            FastAPI backend
 docker/         Dockerfile + docker-compose.yml
 gameserver/     headless game-server launcher + notes
+config/         env example
 docs/PROTOCOL.md
+run.sh run.ps1  quick-start scripts
 ```
 
 ## Legal / disclaimer
 
 Reverse-engineered for interoperability and preservation, with the developer's
-permission, using a legally purchased copy. **No game assets or binaries are
-included** — you must own the game.
+permission, using a legally purchased copy. **No game assets or binaries are included** —
+you must own the game.
 
 ## License
 
