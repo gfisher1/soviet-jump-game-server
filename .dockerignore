@@ -1,13 +1,14 @@
 .git
 .gitea
+.github
 __pycache__
 *.pyc
 .venv
 venv
 .env
 *.log
+# The game files are mounted, never baked in.
 game/
-gameserver/
 docs/
 README.md
 LICENSE

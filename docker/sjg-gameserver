@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Headless Soviet Jump Game server (the "gameserver" role of the combined image).
+#
+# The game IS the server: there is no separate dedicated-server binary. This
+# launches the retail client under Wine in Unity's headless mode; the game then
+# hosts a Bolt session on UDP ${SJG_GAME_PORT}.
+#
+# NO GAME CODE IS SHIPPED. Mount your own copy of the game at ${SJG_GAME_DIR}.
+# ---------------------------------------------------------------------------
+set -euo pipefail
+
+GAME_DIR="${SJG_GAME_DIR:-/game}"
+MAP="${SJG_MATCH_MAP:-Soviet Jump Game Map A}"
+PORT="${SJG_GAME_PORT:-42010}"
+
+export WINEPREFIX="${WINEPREFIX:-/wine}"
+export WINEDLLOVERRIDES="${WINEDLLOVERRIDES:-winhttp=n,b}"
+export WINEDEBUG="${WINEDEBUG:--all}"
+
+if [ ! -f "${GAME_DIR}/SovietJumpGame.exe" ]; then
+    echo "[sjg] no game files found: ${GAME_DIR}/SovietJumpGame.exe" >&2
+    echo "[sjg] mount your retail game folder there (see the wiki: Deployment)." >&2
+    exit 1
+fi
+
+mkdir -p "${WINEPREFIX}"
+
+cd "${GAME_DIR}"
+
+echo "[sjg] starting headless server: map='${MAP}', udp=${PORT}, wineprefix=${WINEPREFIX}"
+
+# The launch options make Headless.IsHeadless() true, which boots
+# Bolt.Samples.HeadlessServer.HeadlessServerManager instead of the menu.
+exec xvfb-run -a wine SovietJumpGame.exe -batchmode -nographics "${MAP}"

@@ -82,13 +82,23 @@ HS256 JWT whose payload is that JSON is accepted.
 `AuthProtocolToken` (sent to the game server as the connection token):
 `{ PlayFabId, PlayFabToken, AuthToken, ConnectToken, Code, LobbyId }`.
 
-## 4. What the server must still provide for online-style play
+## 4. Online-style play: these are now implemented
+
+All three pieces below are shipped — client side in the
+[soviet-jump-game-patch](https://github.com/gfisher1/soviet-jump-game-patch) plugin, server
+side in this repo.
 
 1. **PlayFab QoS** — `MatchConnection.ConnectToMatchmaking` starts with
-   `new PlayFabQosApi().GetQosResultAsync()`. With no PlayFab this throws. Either the
-   server emulates `ListQosServersForTitle`, or the patch stubs the QoS step.
+   `new PlayFabQosApi().GetQosResultAsync()`, which throws with no PlayFab. The patch stubs it
+   (`Patches.QosResultAsync_Prefix`, returning an empty `QosResult`), so the join path
+   (`SovietAPI.JoinPublicMatch` → `BoltPro.Connect`) completes against this backend. Emulating
+   `ListQosServersForTitle` is therefore not required.
 2. **Server registration / port** — the shipped client build has no heartbeat caller
-   (`SovietAPI.SendServerHeartbeat` is unused), so a headless server must publish its
-   `IP:Port` itself (a small plugin component, or a fixed port + static config).
-3. **A player-bearing game server** — run the headless build, have it accept the client's
-   `AuthProtocolToken`, and let Bolt spawn the joining player.
+   (`SovietAPI.SendServerHeartbeat` is unused), but the plugin adds one: any host that is
+   serving Bolt — including the headless gameserver, where the plugin is loaded too — POSTs
+   `POST /server/heartbeat` every 5 s. The backend prunes entries idle for 20 s. A fixed
+   `SJG_STATIC_SERVERS` listing is still available as a fallback.
+3. **A player-bearing game server** — run the retail game headless (see
+   [`../gameserver/README.md`](../gameserver/README.md)); it accepts the client's
+   `AuthProtocolToken` and Bolt spawns the joining player. Empty slots are backfilled with bots
+   (`BotCount − (humans − 1)`) so a lone player is never left waiting.

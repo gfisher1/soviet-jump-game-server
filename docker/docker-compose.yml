@@ -1,32 +1,54 @@
-# Soviet Jump Game - local backend
+# Soviet Jump Game - self-hosted backend + headless game server.
 #
-#   docker compose up --build
+# ONE image, TWO services (both roles of the same build):
+#   sjg-api         the FastAPI backend (auth + server browser)      -> TCP 8080
+#   sjg-gameserver  the retail game run headless (the real server)   -> UDP 42010
 #
-# The mock backend listens on :8080. Point the client patch's ApiBaseUrl at
-# http://<host>:8080/ and launch the (retail) headless game server separately
-# so its UDP port is reachable on SJG_GAME_PORT.
+# Quick start:
+#   export SJG_GAME_DIR="/path/to/Soviet Jump Game"   # your retail copy
+#   docker compose -f docker/docker-compose.yml up --build
+#
+# Clients then point Server.ApiBaseUrl at http://<host>:8080/ and connect to
+# <host>:42010. Nothing else is required: the gameserver registers itself with
+# the backend (heartbeat) and fills empty slots with bots.
+
 services:
   sjg-api:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
     image: sjg-server:latest
+    build:
+      context: ".."
+      dockerfile: "docker/Dockerfile"
+    entrypoint: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
     ports:
       - "8080:8080/tcp"
-      - "42010:42010/udp"
     environment:
-      SJG_PUBLIC_HOST: "${SJG_PUBLIC_HOST:-127.0.0.1}"
-      SJG_GAME_PORT: "${SJG_GAME_PORT:-42010}"
-      SJG_ACCOUNT_GROUP: "${SJG_ACCOUNT_GROUP:-Administrator}"
-      SJG_JWT_SECRET: "${SJG_JWT_SECRET:-sjg-local-secret}"
+      SJG_PUBLIC_HOST: ${SJG_PUBLIC_HOST:-127.0.0.1}
+      SJG_GAME_PORT: ${SJG_GAME_PORT:-42010}
+      SJG_ACCOUNT_GROUP: ${SJG_ACCOUNT_GROUP:-Administrator}
+      SJG_JWT_SECRET: ${SJG_JWT_SECRET:-sjg-local-secret}
+      SJG_STATIC_SERVERS: ${SJG_STATIC_SERVERS:-}
     restart: unless-stopped
 
-  # Optional: run the retail game as a headless server under Wine. Requires you to
-  # provide your own game files (bind-mounted read-only) - they are NOT in the repo.
-  #
-  # sjg-gameserver:
-  #   image: scottyhardy/docker-wine:latest
-  #   volumes:
-  #     - "${SJG_GAME_DIR:?set SJG_GAME_DIR}:/game:ro"
-  #   entrypoint: ["/game/run-headless.sh"]
-  #   network_mode: "host"
+  sjg-gameserver:
+    image: sjg-server:latest
+    depends_on:
+      - sjg-api
+    entrypoint: ["/usr/local/bin/sjg-gameserver"]
+    ports:
+      - "${SJG_GAME_PORT:-42010}:42010/udp"
+    environment:
+      SJG_GAME_DIR: /game
+      SJG_MATCH_MAP: ${SJG_MATCH_MAP:-Soviet Jump Game Map A}
+      SJG_GAME_PORT: ${SJG_GAME_PORT:-42010}
+      # So the auto-registered heartbeat advertises a routable address.
+      SJG_PUBLIC_HOST: ${SJG_PUBLIC_HOST:-127.0.0.1}
+      WINEPREFIX: /wine
+    volumes:
+      # "Bring your own game": this repo ships no game code.
+      - ${SJG_GAME_DIR:?set SJG_GAME_DIR to your retail Soviet Jump Game folder}:/game
+      # Persistent Wine prefix (created once, then reused).
+      - sjg-wine:/wine
+    restart: unless-stopped
+
+volumes:
+  sjg-wine:
