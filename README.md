@@ -8,7 +8,7 @@ a **live server registry** (the server browser), and tooling to run the retail g
 headless server. Runs on **Windows**, **Linux**, and **Docker**.
 
 This repo is the counterpart to
-**[soviet-jump-game-patch](https://git.gfi.sh/gfisher/soviet-jump-game-patch)** (which points
+**[soviet-jump-game-patch](https://github.com/gfisher1/soviet-jump-game-patch)** (which points
 the client here).
 
 ## Quick start
@@ -57,13 +57,13 @@ That loads `git.gfi.sh/gfisher/soviet-jump-game-server:v1.0.0` and `:latest`.
 
 | Page | What's in it |
 | --- | --- |
-| [Configuration](https://git.gfi.sh/gfisher/soviet-jump-game-server/wiki/Configuration) | Environment variables |
-| [Deployment](https://git.gfi.sh/gfisher/soviet-jump-game-server/wiki/Deployment) | Docker, compose, the prebuilt image |
-| [API](https://git.gfi.sh/gfisher/soviet-jump-game-server/wiki/API) | HTTP endpoints |
-| [Static servers](https://git.gfi.sh/gfisher/soviet-jump-game-server/wiki/Static-Servers) | `SJG_STATIC_SERVERS` |
-| [Headless server](https://git.gfi.sh/gfisher/soviet-jump-game-server/wiki/Headless-Server) | Run the retail game as a server |
-| [Protocol](https://git.gfi.sh/gfisher/soviet-jump-game-server/wiki/Protocol) | Client ⇄ server contract |
-| [Troubleshooting](https://git.gfi.sh/gfisher/soviet-jump-game-server/wiki/Troubleshooting) | Common problems |
+| [Configuration](https://github.com/gfisher1/soviet-jump-game-server/wiki/Configuration) | Environment variables |
+| [Deployment](https://github.com/gfisher1/soviet-jump-game-server/wiki/Deployment) | Docker, compose, the prebuilt image |
+| [API](https://github.com/gfisher1/soviet-jump-game-server/wiki/API) | HTTP endpoints |
+| [Static servers](https://github.com/gfisher1/soviet-jump-game-server/wiki/Static-Servers) | `SJG_STATIC_SERVERS` |
+| [Headless server](https://github.com/gfisher1/soviet-jump-game-server/wiki/Headless-Server) | Run the retail game as a server |
+| [Protocol](https://github.com/gfisher1/soviet-jump-game-server/wiki/Protocol) | Client ⇄ server contract |
+| [Troubleshooting](https://github.com/gfisher1/soviet-jump-game-server/wiki/Troubleshooting) | Common problems |
 
 ## Layout
 
