@@ -26,10 +26,37 @@ fi
 
 mkdir -p "${WINEPREFIX}"
 
+# Wine needs an X display even though the game runs with -nographics. We start
+# our own Xvfb rather than using xvfb-run, because xvfb-run waits on `xdpyinfo`
+# (not present in the base image) and would hang forever.
+XVFB_PID=""
+cleanup() { [ -n "${XVFB_PID}" ] && kill "${XVFB_PID}" 2>/dev/null || true; }
+trap cleanup EXIT INT TERM
+
+if [ -z "${DISPLAY:-}" ]; then
+    : "${XVFB_DISPLAY:=:99}"
+    Xvfb "${XVFB_DISPLAY}" -screen 0 1280x1024x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
+    XVFB_PID=$!
+    export DISPLAY="${XVFB_DISPLAY}"
+
+    # Wait for the server socket (X11-unix/X<n>) before handing over to Wine.
+    XVFB_SOCKET="/tmp/.X11-unix/X${XVFB_DISPLAY#:}"
+    for _ in $(seq 1 100); do
+        [ -e "${XVFB_SOCKET}" ] && break
+        sleep 0.2
+    done
+
+    if [ ! -e "${XVFB_SOCKET}" ]; then
+        echo "[sjg] Xvfb did not come up on ${XVFB_DISPLAY}; see /tmp/xvfb.log" >&2
+        cat /tmp/xvfb.log >&2 || true
+        exit 1
+    fi
+fi
+
 cd "${GAME_DIR}"
 
-echo "[sjg] starting headless server: map='${MAP}', udp=${PORT}, wineprefix=${WINEPREFIX}"
+echo "[sjg] starting headless server: map='${MAP}', udp=${PORT}, display=${DISPLAY}, wineprefix=${WINEPREFIX}"
 
-# The launch options make Headless.IsHeadless() true, which boots
+# -batchmode/-nographics make Headless.IsHeadless() true, which boots
 # Bolt.Samples.HeadlessServer.HeadlessServerManager instead of the menu.
-exec xvfb-run -a wine SovietJumpGame.exe -batchmode -nographics "${MAP}"
+exec wine SovietJumpGame.exe -batchmode -nographics "${MAP}"
