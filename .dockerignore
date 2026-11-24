@@ -1,0 +1,13 @@
+.git
+.gitea
+__pycache__
+*.pyc
+.venv
+venv
+.env
+*.log
+game/
+gameserver/
+docs/
+README.md
+LICENSE

@@ -48,6 +48,21 @@ docker compose -f docker/docker-compose.yml up --build
 Then point the patched client at it — set `Server.ApiBaseUrl = http://<host>:8080/` in the
 patch's `games.gfi.sjg.patch.cfg`, and use `sjg-refresh` / `sjg-servers` in-game.
 
+## Prebuilt image (CI)
+
+Every push to `main` and every `v*` tag builds and publishes
+`git.gfi.sh/gfisher/soviet-jump-game-server:latest` to the Gitea container registry
+(see [`.gitea/workflows/publish-docker.yml`](.gitea/workflows/publish-docker.yml)).
+
+Each `v*` release also attaches a `docker load`-able tarball, for hosts that cannot reach
+the registry (`<host>` with no route to `git.gfi.sh`) — copy it over and:
+
+```bash
+docker load -i soviet-jump-game-server-v1.0.0.tar.gz
+```
+
+That loads `git.gfi.sh/gfisher/soviet-jump-game-server:v1.0.0` and `:latest`.
+
 ---
 
 ## Server browser
@@ -122,6 +137,8 @@ app/            FastAPI backend
 docker/         Dockerfile + docker-compose.yml
 gameserver/     headless game-server launcher + notes
 config/         env example
+scripts/        release helper used by CI
+.gitea/workflows  CI: builds/pushes the image, publishes releases on v* tags
 docs/PROTOCOL.md
 run.sh run.ps1  quick-start scripts
 ```

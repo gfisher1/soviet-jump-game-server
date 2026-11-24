@@ -1,0 +1,71 @@
+name: publish
+
+# Builds the backend image and pushes it to the Gitea container registry.
+# On a v* tag it also attaches a `docker load`-able image tarball to the
+# release, for hosts that cannot reach the registry (copy it over and
+# `docker load -i <tarball>`).
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Gitea container registry
+        uses: docker/login-action@v3
+        with:
+          registry: git.gfi.sh
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Build and publish the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: |
+            git.gfi.sh/${{ github.repository }}:latest
+            git.gfi.sh/${{ github.repository }}:sha-${{ github.sha }}
+            git.gfi.sh/${{ github.repository }}:${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.title=Soviet Jump Game server
+            org.opencontainers.image.source=https://git.gfi.sh/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and save a loadable image tarball
+        run: |
+          IMAGE="git.gfi.sh/${{ github.repository }}"
+          docker build -f docker/Dockerfile -t "$IMAGE:${{ github.ref_name }}" -t "$IMAGE:latest" .
+          docker save "$IMAGE:${{ github.ref_name }}" "$IMAGE:latest" \
+            | gzip -1 > "soviet-jump-game-server-${{ github.ref_name }}.tar.gz"
+          ls -lh "soviet-jump-game-server-${{ github.ref_name }}.tar.gz"
+
+      - name: Publish the release with the tarball attached
+        env:
+          GITEA_URL: ${{ github.server_url }}
+          REPO: ${{ github.repository }}
+          TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: ./scripts/publish-release.sh "soviet-jump-game-server-${{ github.ref_name }}.tar.gz"
