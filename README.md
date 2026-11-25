@@ -104,6 +104,12 @@ docs/PROTOCOL.md
 run.sh run.ps1    quick-start scripts (backend only)
 ```
 
+## AI notice
+
+This project - the backend, the Docker image and the release tooling - was built by
+**opencode**, an AI coding agent, using **DeepSeek V4.1** as the model. Every change was
+authored, built, deployed and tested by that agent.
+
 ## Legal / disclaimer
 
 Reverse-engineered for interoperability and preservation, with the developer's permission,
