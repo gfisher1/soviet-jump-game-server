@@ -126,6 +126,14 @@ Reverse-engineered for interoperability and preservation, with the developer's p
 using a legally purchased copy. **No game assets or binaries are included** — you must own
 the game.
 
+## Third-party components
+
+The prebuilt image is built on the `scottyhardy/docker-wine` base image (Debian + Wine).
+Wine is LGPL-2.1-or-later, and Debian ships the full copyright and license text for every
+package inside the image under `/usr/share/doc/<package>/copyright`. The backend uses
+MIT/BSD-licensed Python packages (FastAPI, uvicorn and friends) listed in
+`requirements.txt`. This project's own code is MIT.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
