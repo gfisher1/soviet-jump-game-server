@@ -34,10 +34,20 @@ That starts both roles:
 | `sjg-api` | `8080/tcp` | Backend the patched client talks to |
 | `sjg-gameserver` | `42010/udp` | The actual gameplay server (Bolt over UDP) |
 
-Nothing else is needed: **clients just click MATCHMAKING.** Their patch defaults to
-`Server.ApiBaseUrl = sjg.dnd.wtf` and `MatchmakingAction = Auto`, which refreshes the server
-list, joins the first server it finds, and falls back to a local bot match if the backend is
-unreachable. No console, no hotkeys.
+### Letting players in
+
+Clients need the
+**[soviet-jump-game-patch](https://github.com/gfisher1/soviet-jump-game-patch)** plugin.
+Its installer asks the player to choose a play mode:
+
+| Mode | What **MATCHMAKING** does |
+| --- | --- |
+| **online** (default) | Refreshes the server list, joins the first server it finds, and falls back to a local bot match if the backend is unreachable. |
+| **offline** | Hosts a local bot match on the player's own PC — no server, no account, no internet. |
+
+Point clients at your server with `Server.ApiBaseUrl` (the default is the public
+`sjg.dnd.wtf`). With the patch installed, players **just click MATCHMAKING** — no console,
+no hotkeys.
 
 ## Quick start (without Docker)
 
