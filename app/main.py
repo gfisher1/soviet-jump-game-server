@@ -208,7 +208,7 @@ async def private_connect(code: str) -> MinimalServerInstance:
 
 
 @app.get("/server/public/{region}")
-async def public_match(region: str, auto: int = 0) -> MinimalServerInstance:
+async def public_match(region: str, auto: str = "0") -> MinimalServerInstance:
     _ = (region, auto)
     return _minimal(configured_server())
 
