@@ -60,4 +60,4 @@ cd "${GAME_DIR}"
 
 echo "[sjg] starting headless server: map='${MAP}', udp=${PORT}, display=${DISPLAY}, wineprefix=${WINEPREFIX}"
 
-exec wine SovietJumpGame.exe "${MAP}"
+exec wine SovietJumpGame.exe -batchmode "${MAP}"
